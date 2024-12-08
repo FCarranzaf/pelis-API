@@ -1,1 +1,1 @@
-[]
+[{"email":"felipe.carranza.f@gmail.com","firstName":"Felipe","lastName":"Carranza","password":"$2a$10$eRq0CvV5Zjw/uZ0sm1QSMedxAtHxRsBrZoLhzWPKOnlNlhZube0fS"}]

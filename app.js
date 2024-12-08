@@ -2,11 +2,13 @@
 const express = require('express');
 var fs = require('fs');
 const cors = require('cors');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 require('dotenv/config');
 
 // App constants
 const app = express();
-const crypto = require('crypto');
+const JWT_SECRET_KEY = 'jwtSecretKeyFCF';
 
 // Middleware
 app.use(cors());
@@ -20,33 +22,46 @@ const { error } = require('console');
 /* --- Endpoints --- */
 
 // Registrar Usuario
-app.post('/registrar', function (req,res) {
-    err = checkData(req.body.email, req.body.firstName, req.body.lastName, req.body.password);
-    if(err != null){
-        res.status(400).json({ error : err});
+app.post('/registrar', async function (req,res) {
+    const data = checkData(req.body.email, req.body.firstName, req.body.lastName, req.body.password);
+    if(data){
+        return res.status(400).json({ error : data});
     }
-    else if(emailRepetido(req.body.email)){
-        res.status(400).json({ error: `Ya existe un usuario con el email ${req.body.email}`});
+    else if(users.some(user => user.email === req.body.email.replaceAll(' ', ''))){
+        return res.status(400).json({ error: `Ya existe un usuario con el email ${req.body.email}`});
     }
     else{
-        const {salt, hash} = hashPass(req.body.password);
+        const hash = await bcrypt.hash(req.body.password, 10);
         let newUser = {
-            email: req.body.email,
+            email: req.body.email.replaceAll(' ', ''),
             firstName: req.body.firstName,
             lastName: req.body.lastName,
-            password: {salt, hash}
+            password: hash
         };
         users.push(newUser);
         fs.writeFile(
             "./users.txt",
             JSON.stringify(users),
             err => {
-                if (err) res.status(500).json({ error: `Hubo un error añadiendo el usuario\n ${err}`});
-                else res.status(201).json({message: "Se ha añadido correctamente al usuario."});
+                if (err) return res.status(500).json({ error: `Hubo un error añadiendo el usuario\n ${err}`});
+                else return res.status(201).json({message: "Se ha añadido correctamente al usuario."});
             }
         );
     }
 })
+
+// Autenticar usuario
+app.post("/login", async function(req, res) {
+    const user = users.find(user => user.email === req.body.email);
+    if(!user)
+        return res.status(400).json({ error: `No existe un usuario con email ${req.body.email}` });
+    if(!await bcrypt.compare(req.body.password, user.password))
+        return res.status(400).json({ error: 'Contraseña incorrecta.' });
+
+    const tkn = jwt.sign({email: user.email}, JWT_SECRET_KEY);
+
+    res.status(200).json({message: "Usuario autenticado.", tkn});
+});
 
 /* --- Funciones auxiliares --- */
 function checkData(email, fn, ln, pass){
@@ -55,20 +70,6 @@ function checkData(email, fn, ln, pass){
     else if(ln.length == 0) return 'Apellido inválido.'
     else if(pass.length < 8) return 'Contraseña muy corta.'
     else return null;
-}
-
-function emailRepetido(mail){
-    return users.some(user => user.email === mail);
-}
-
-function hashPass(pass, salt = crypto.randomBytes(16).toString('hex')){
-    const iterations = 10;
-    const keyLength = 64;
-    const digest = 'sha512';
-
-    const hash = crypto.pbkdf2Sync(pass, salt, iterations, keyLength, digest).toString('hex');
-
-    return {salt, hash};
 }
 
 module.exports = app;

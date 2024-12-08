@@ -4,6 +4,7 @@ const app = require('./app');
 
 /* --- Tests --- */
 describe('Tests de la API', ()=>{
+    // Test de registro
     it('Chequeo agregar usuario', async ()=> {
         const res = await request(app).post('/registrar').send({
             email: "felipe.carranza.f@gmail.com",
@@ -53,5 +54,30 @@ describe('Tests de la API', ()=>{
         });
         expect(res.statusCode).toBe(400);
         expect(res.body.error).toBe("Contraseña muy corta.");
+    });
+    // Test de login
+    it('Chequeo usuario inexistente', async ()=> {
+        const res = await request(app).post('/login').send({
+            email: "dasdasd",
+            password: "dasdasd"
+        });
+        expect(res.statusCode).toBe(400);
+        expect(res.body.error).toBe("No existe un usuario con email dasdasd");
+    });
+    it('Chequeo contraseña incorrecta', async ()=> {
+        const res = await request(app).post('/login').send({
+            email: "felipe.carranza.f@gmail.com",
+            password: "dasdasd"
+        });
+        expect(res.statusCode).toBe(400);
+        expect(res.body.error).toBe("Contraseña incorrecta.");
+    });
+    it('Chequeo login correcto', async ()=> {
+        const res = await request(app).post('/login').send({
+            email: "felipe.carranza.f@gmail.com",
+            password: "123456789"
+        });
+        expect(res.statusCode).toBe(200);
+        expect(res.body.message).toBe("Usuario autenticado.");
     });
 });
