@@ -104,7 +104,7 @@ app.get("/peliculas", authToken, async (req, res) => {
     const kwrd = req.keyword;
     if(kwrd){
         try{
-            const movies = await axios.get(`${mbdb_url}/search/movie`, {
+            var movies = await axios.get(`${mbdb_url}/search/movie`, {
                 params: {
                     query: kwrd,
                     language: 'es-ES',
@@ -113,7 +113,7 @@ app.get("/peliculas", authToken, async (req, res) => {
                 headers: {
                     Authorization: `Bearer ${mbdb_key}`
                 }
-            });
+            }).results;
         }
         catch{
             return res.status(500).json({ error: 'Error al obtener las películas de MBDb.' });
@@ -121,7 +121,7 @@ app.get("/peliculas", authToken, async (req, res) => {
     }
     else{
         try{
-            const movies = await axios.get(`${mbdb_url}/movie/popular`, {
+            var movies = await axios.get(`${mbdb_url}/movie/popular`, {
                 params: {
                     language: 'es-ES',
                     page: 1
@@ -129,13 +129,45 @@ app.get("/peliculas", authToken, async (req, res) => {
                 headers: {
                     Authorization: `Bearer ${mbdb_key}`
                 }
-            });
+            }).results;
         }
         catch{
             return res.status(500).json({ error: 'Error al obtener las películas de MBDb.' });
         }
     }
-    // TO-DO: Generar suggestionScore y ordenar lista de películas.
+    movies.forEach(movie => {
+        movie.suggestionScore = Math.floor(Math.random()*100);
+    });
+    movies = mergeSort(movies);
+    return res.status(200).message{peliculas: movies};
 });
+
+function mergeSort(arr){
+    if(arr.length == 2){
+        if(arr[0].suggestionScore < arr[1].suggestionScore){
+            const aux = arr[0];
+            arr[0] = arr[1];
+            arr[1] = aux; 
+        }
+    }
+    else if(arr.length > 2){
+        var arr1 = mergeSort(arr.slice(0, Math.floor(arr.length/2)));
+        var arr2 = mergeSort(arr.slice(Math.floor(arr.length/2+1), arr.length-1));
+        var i = 0;
+        while(arr1.length > 0 || arr2.length > 0){
+            if(arr1.length == 0)
+                arr[i] = arr2.shift();
+            else if(arr2.length == 0)
+                arr[i] = arr1.shift();
+            else{
+                if(arr1[0].suggestionScore > arr2[0].suggestionScore)
+                    arr[i] = arr1.shift();
+                else
+                    arr[i] = arr2.shift();
+            }
+        }
+    }
+    return arr;
+}
 
 module.exports = app;
