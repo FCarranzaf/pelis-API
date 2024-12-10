@@ -33,11 +33,11 @@ const authToken = (req, res, next) => {
     if(!tkn)
         return res.status(403).json({ error: 'Acceso denegado. No proporcionó token de identificación.'});
 
-    jwt.verify(tkn, JWT_SECRET_KEY, (err, user) => {
+    jwt.verify(tkn, JWT_SECRET_KEY, (err, email) => {
         if(err)
             return res.status(403).json({ error: 'Acceso denegado. Token inválido.' });
 
-        req.user = user;
+        req.email = email;
         next();
     });
 };
@@ -56,7 +56,6 @@ try {
 
 const users = JSON.parse(uFile, 'utf-8');
 const favs = JSON.parse(fFile, 'utf-8');
-const { error } = require('console');
 const { default: axios } = require('axios');
 
 /* --- Endpoints --- */
@@ -145,6 +144,45 @@ app.get("/peliculas", authToken, async (req, res) => {
     return res.status(200).json({message: movs});
 });
 
+// Añadir película a favoritos
+app.post('/favoritas', authToken, async (req, res) => {
+    const movieID = req.movieID;
+    if(!movieID)
+        return res.status(400).json({ error: 'No proporcionó película' });
+    let uFav = favs.find(item => item.email === req.email);
+    if(!uFav){
+        uFav = {
+            email: req.email
+        };
+    }
+    let movieFavs = uFav.movies;
+    if(!movieFavs)
+        movieFavs = [];
+    if(movieFavs.find(movie => movie.id === movieID))
+        return res.status(200).json({ message: 'La película ya estaba en favoritos. No ocurrió nada.' });
+    let newMovie = {
+        id: movieID,
+        addedAt: new Date()
+    }
+    movieFavs.push(newMovie);
+    uFav.movies = movieFavs;
+    const index = favs.findIndex(item => item.email === req.email);
+    if(index)
+        favs[index] = uFav;
+    else
+        favs.push(uFav);
+    fs.writeFile(
+        "./favs.txt",
+        JSON.stringify(favs),
+        err => {
+            if (err) return res.status(500).json({ error: `Hubo un error añadiendo la película\n ${err}`});
+            else return res.status(201).json({message: "Se ha añadido correctamente la película."});
+        }
+    );
+});
+
+
+// Auxiliar de ordenamiento
 function mergeSort(arr){
     let ret = [];
     if(arr.length == 2){
