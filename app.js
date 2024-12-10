@@ -35,7 +35,7 @@ const authToken = (req, res, next) => {
 
     jwt.verify(tkn, JWT_SECRET_KEY, (err, user) => {
         if(err)
-            return res.status(403).json({ error: 'Acceso denegado. Token inválido' });
+            return res.status(403).json({ error: 'Acceso denegado. Token inválido.' });
 
         req.user = user;
         next();
@@ -96,15 +96,16 @@ app.post("/login", async (req, res) => {
 
     const tkn = jwt.sign({email: user.email}, JWT_SECRET_KEY);
 
-    res.status(200).json({message: "Usuario autenticado.", tkn});
+    res.status(200).json({message: "Usuario autenticado.", token: tkn});
 });
 
 // Listar pelícukas
 app.get("/peliculas", authToken, async (req, res) => {
     const kwrd = req.keyword;
+    let movies;
     if(kwrd){
         try{
-            var movies = await axios.get(`${mbdb_url}/search/movie`, {
+            const res = await axios.get(`${mbdb_url}/search/movie`, {
                 params: {
                     query: kwrd,
                     language: 'es-ES',
@@ -113,7 +114,8 @@ app.get("/peliculas", authToken, async (req, res) => {
                 headers: {
                     Authorization: `Bearer ${mbdb_key}`
                 }
-            }).results;
+            });
+            movies = res.data.results;
         }
         catch{
             return res.status(500).json({ error: 'Error al obtener las películas de MBDb.' });
@@ -121,15 +123,16 @@ app.get("/peliculas", authToken, async (req, res) => {
     }
     else{
         try{
-            var movies = await axios.get(`${mbdb_url}/movie/popular`, {
+            const res = await axios.get(`${mbdb_url}/movie/popular`, {
                 params: {
                     language: 'es-ES',
                     page: 1
                 },
                 headers: {
-                    Authorization: `Bearer ${mbdb_key}`
+                    authorization: `Bearer ${mbdb_key}`
                 }
-            }).results;
+            });
+            movies = res.data.results;
         }
         catch{
             return res.status(500).json({ error: 'Error al obtener las películas de MBDb.' });
@@ -138,36 +141,37 @@ app.get("/peliculas", authToken, async (req, res) => {
     movies.forEach(movie => {
         movie.suggestionScore = Math.floor(Math.random()*100);
     });
-    movies = mergeSort(movies);
-    return res.status(200).message{peliculas: movies};
+    movs = mergeSort(movies);
+    return res.status(200).json({message: movs});
 });
 
 function mergeSort(arr){
+    let ret = [];
     if(arr.length == 2){
         if(arr[0].suggestionScore < arr[1].suggestionScore){
-            const aux = arr[0];
-            arr[0] = arr[1];
-            arr[1] = aux; 
+            ret[0] = arr[1];
+            ret[1] = arr[0]; 
         }
     }
     else if(arr.length > 2){
         var arr1 = mergeSort(arr.slice(0, Math.floor(arr.length/2)));
         var arr2 = mergeSort(arr.slice(Math.floor(arr.length/2+1), arr.length-1));
         var i = 0;
-        while(arr1.length > 0 || arr2.length > 0){
+        while((arr1 && arr1.length > 0) || (arr2 && arr2.length > 0)){
             if(arr1.length == 0)
-                arr[i] = arr2.shift();
+                ret[i] = arr2.shift();
             else if(arr2.length == 0)
-                arr[i] = arr1.shift();
+                ret[i] = arr1.shift();
             else{
-                if(arr1[0].suggestionScore > arr2[0].suggestionScore)
-                    arr[i] = arr1.shift();
+                if(arr1[0].suggestionScore < arr2[0].suggestionScore)
+                    ret[i] = arr2.shift();
                 else
-                    arr[i] = arr2.shift();
+                    ret[i] = arr1.shift();
             }
+            i++;
         }
     }
-    return arr;
+    return ret;
 }
 
 module.exports = app;
