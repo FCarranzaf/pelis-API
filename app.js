@@ -146,13 +146,23 @@ app.get("/peliculas", authToken, async (req, res) => {
 
 // Añadir película a favoritos
 app.post('/favoritas', authToken, async (req, res) => {
-    const movieID = req.movieID;
+    const movieID = req.body.movieID;
     if(!movieID)
-        return res.status(400).json({ error: 'No proporcionó película' });
-    let uFav = favs.find(item => item.email === req.email);
+        return res.status(400).json({ error: 'No proporcionó película.' });
+    try{
+        const resp = await axios.get(`${mbdb_url}/movie/${movieID}`, {
+            headers: {
+                Authorization: `Bearer ${mbdb_key}`
+            }
+        });
+    }
+    catch{
+        return res.status(400).json({ error: 'La película ingresada no existe.' });
+    }
+    let uFav = favs.find(item => item.email === req.email.email);
     if(!uFav){
         uFav = {
-            email: req.email
+            email: req.email.email
         };
     }
     let movieFavs = uFav.movies;
@@ -166,8 +176,8 @@ app.post('/favoritas', authToken, async (req, res) => {
     }
     movieFavs.push(newMovie);
     uFav.movies = movieFavs;
-    const index = favs.findIndex(item => item.email === req.email);
-    if(index)
+    const index = favs.findIndex(item => item.email === uFav.email);
+    if(index != -1)
         favs[index] = uFav;
     else
         favs.push(uFav);
@@ -179,6 +189,29 @@ app.post('/favoritas', authToken, async (req, res) => {
             else return res.status(201).json({message: "Se ha añadido correctamente la película."});
         }
     );
+});
+
+// Obtener películas favoritas
+app.get('/favoritas', authToken, async (req,res) => {
+    const uFav = favs.find(item => item.email === req.email);
+    if(!uFav)
+        return res.status(200).json({ message: 'El usuario no tiene películas favoritas.' });
+    let movs = uFav.movies;
+    movs.forEach(movie => {
+        movie.suggestionScore = Math.floor(Math.random()*100);
+    });
+    const ordMovs = mergeSort(movs);
+    let ret = [];
+    ordMovs.foreach(async movie => {
+        let resp = await axios.get(`${mbdb_url}/movie/${movie.id}`, {
+            headers: {
+                Authorization: `Bearer ${mbdb_key}`
+            }
+        });
+        resp.suggestionForTodayScore = movie.suggestionScore;
+        resp.addedAt = movie.addedAt;
+        ret.push(resp);
+    });
 });
 
 

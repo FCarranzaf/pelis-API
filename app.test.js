@@ -112,6 +112,53 @@ describe('Tests de la API', ()=>{
         }
         expect(ord).toBe(true);
     });
+    test('Listar películas con keyword', async ()=> {
+        const res = await request(app).get('/peliculas').set('authorization', `Bearer ${token}`).send({
+            keyword: 'Accion'
+        });
+
+        expect(res.status).toBe(200);
+        let ord = true;
+        const movies = res.body.message;
+        for(let i = 0; i < movies.length-2; i++){
+            if(parseInt(movies[i].suggestionScore) < parseInt(movies[i+1].suggestionScore)){
+                ord = false;
+                break;
+            }
+        }
+        expect(ord).toBe(true);
+    });
+    // Test añadir película
+    test('Añadir película sin parámetros', async ()=> {
+        const res = await request(app).post('/favoritas').set('authorization', `Bearer ${token}`);
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toBe('No proporcionó película.');
+    });
+    test('Añadir película inexistente', async ()=> {
+        const res = await request(app).post('/favoritas').set('authorization', `Bearer ${token}`).send({
+            movieID: 65129165
+        });
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toBe('La película ingresada no existe.');
+    });
+    test('Añadir película correctamente', async ()=> {
+        const res = await request(app).post('/favoritas').set('authorization', `Bearer ${token}`).send({
+            movieID: 603
+        });
+
+        expect(res.status).toBe(201);
+        expect(res.body.message).toBe('Se ha añadido correctamente la película.');
+    });
+    test('Añadir película repetida', async ()=> {
+        const res = await request(app).post('/favoritas').set('authorization', `Bearer ${token}`).send({
+            movieID: 603
+        });
+
+        expect(res.status).toBe(200);
+        expect(res.body.message).toBe('La película ya estaba en favoritos. No ocurrió nada.');
+    });
 
     // Limpiar
     afterAll(async ()=> {
@@ -120,7 +167,15 @@ describe('Tests de la API', ()=>{
             "./users.txt",
             JSON.stringify(users.filter(user => user.email !== 'felipe.carranza.f@gmail.com')),
             err => {
-                if (err) console.log(`Hubo un error añadiendo el usuario\n ${err}`);
+                if (err) console.log(`Hubo un error eliminando el usuario de prueba\n ${err}`);
+            }
+        );
+        const favs = JSON.parse(fs.readFileSync('./favs.txt'), 'utf-8');
+        fs.writeFile(
+            "./favs.txt",
+            JSON.stringify(favs.filter(fav => fav.email !== 'felipe.carranza.f@gmail.com')),
+            err => {
+                if (err) console.log(`Hubo un error eliminando el usuario de prueba\n ${err}`);
             }
         );
     });
