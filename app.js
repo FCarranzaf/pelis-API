@@ -49,7 +49,7 @@ try {
     var uFile = '[]';
 }
 try {
-    var fFile = fs.readFileSync('./favoritos.txt');
+    var fFile = fs.readFileSync('./favs.txt');
 } catch (error) {
     var fFile = '[]'
 }
@@ -193,7 +193,7 @@ app.post('/favoritas', authToken, async (req, res) => {
 
 // Obtener películas favoritas
 app.get('/favoritas', authToken, async (req,res) => {
-    const uFav = favs.find(item => item.email === req.email);
+    const uFav = favs.find(item => item.email === req.email.email);
     if(!uFav)
         return res.status(200).json({ message: 'El usuario no tiene películas favoritas.' });
     let movs = uFav.movies;
@@ -202,23 +202,28 @@ app.get('/favoritas', authToken, async (req,res) => {
     });
     const ordMovs = mergeSort(movs);
     let ret = [];
-    ordMovs.foreach(async movie => {
-        let resp = await axios.get(`${mbdb_url}/movie/${movie.id}`, {
+    for (const movie of ordMovs) {
+        const resp = await axios.get(`${mbdb_url}/movie/${movie.id}`, {
             headers: {
                 Authorization: `Bearer ${mbdb_key}`
             }
         });
-        resp.suggestionForTodayScore = movie.suggestionScore;
-        resp.addedAt = movie.addedAt;
-        ret.push(resp);
-    });
+        const newMovie = resp.data;
+        newMovie.suggestionForTodayScore = movie.suggestionScore;
+        newMovie.addedAt = movie.addedAt;
+        ret.push(newMovie);
+        //console.log(ret);
+    };
+    console.log(ret);
+    return res.status(200).json({ peliculas: ret });
 });
 
 
 // Auxiliar de ordenamiento
 function mergeSort(arr){
     let ret = [];
-    if(arr.length == 2){
+    if(arr.length == 1) ret = arr;
+    else if(arr.length == 2){
         if(arr[0].suggestionScore < arr[1].suggestionScore){
             ret[0] = arr[1];
             ret[1] = arr[0]; 

@@ -128,7 +128,7 @@ describe('Tests de la API', ()=>{
         }
         expect(ord).toBe(true);
     });
-    // Test añadir película
+    // Test añadir y obtener película
     test('Añadir película sin parámetros', async ()=> {
         const res = await request(app).post('/favoritas').set('authorization', `Bearer ${token}`);
 
@@ -142,6 +142,12 @@ describe('Tests de la API', ()=>{
 
         expect(res.status).toBe(400);
         expect(res.body.error).toBe('La película ingresada no existe.');
+    });
+    test('Usuario sin películas favoritas', async ()=> {
+        const res = await request(app).get('/favoritas').set('authorization', `Bearer ${token}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.message).toBe('El usuario no tiene películas favoritas.');
     });
     test('Añadir película correctamente', async ()=> {
         const res = await request(app).post('/favoritas').set('authorization', `Bearer ${token}`).send({
@@ -158,6 +164,14 @@ describe('Tests de la API', ()=>{
 
         expect(res.status).toBe(200);
         expect(res.body.message).toBe('La película ya estaba en favoritos. No ocurrió nada.');
+    });
+    test('Usuario con películas favoritas', async ()=> {
+        const res = await request(app).get('/favoritas').set('authorization', `Bearer ${token}`);
+
+        expect(res.status).toBe(200);
+        
+        const thaMatrix = res.body.peliculas.find(peli => peli.id == 603);
+        expect(thaMatrix).toBeDefined();
     });
 
     // Limpiar
