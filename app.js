@@ -9,7 +9,7 @@ require('dotenv/config');
 // App constants
 const app = express();
 const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY;
-const mbdb_key = process.env.MBDb_KEY;
+const mbdb_key = process.env.MBDb;
 const mbdb_url = 'https://api.themoviedb.org/3/';
 
 // Middleware
@@ -32,12 +32,14 @@ const authToken = (req, res, next) => {
     const tkn = authHdr && authHdr.split(' ')[1];
     if(!tkn)
         return res.status(403).json({ error: 'Acceso denegado. No proporcionó token de identificación.'});
-
+    if(blacklist.find(token => token === tkn))
+        return res.status(403).json({ error: 'Acceso denegado. Token inválido.' });
     jwt.verify(tkn, JWT_SECRET_KEY, (err, email) => {
         if(err)
             return res.status(403).json({ error: 'Acceso denegado. Token inválido.' });
 
         req.email = email;
+        req.token = tkn;
         next();
     });
 };
@@ -53,9 +55,15 @@ try {
 } catch (error) {
     var fFile = '[]'
 }
+try {
+    var tFile = fs.readFileSync('./blacklist.txt');
+} catch (error) {
+    var tFile = '[]'
+}
 
 const users = JSON.parse(uFile, 'utf-8');
 const favs = JSON.parse(fFile, 'utf-8');
+const blacklist = JSON.parse(tFile, 'utf-8');
 const { default: axios } = require('axios');
 
 /* --- Endpoints --- */
@@ -114,6 +122,7 @@ app.get("/peliculas", authToken, async (req, res) => {
                     Authorization: `Bearer ${mbdb_key}`
                 }
             });
+            console.log(res);
             movies = res.data.results;
         }
         catch{
@@ -212,10 +221,21 @@ app.get('/favoritas', authToken, async (req,res) => {
         newMovie.suggestionForTodayScore = movie.suggestionScore;
         newMovie.addedAt = movie.addedAt;
         ret.push(newMovie);
-        //console.log(ret);
     };
-    console.log(ret);
     return res.status(200).json({ peliculas: ret });
+});
+
+// Logout
+app.post('/logout', authToken, async (req, res) =>{
+    blacklist.push(req.token);
+    fs.writeFile(
+        "./blacklist.txt",
+        JSON.stringify(blacklist),
+        err => {
+            if (err) return res.status(500).json({ error: `Hubo un error cerrando la sesión\n ${err}`});
+            else return res.status(201).json({message: "Se cerró correctamente sesión."});
+        }
+    );
 });
 
 

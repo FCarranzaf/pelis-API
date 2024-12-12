@@ -173,6 +173,19 @@ describe('Tests de la API', ()=>{
         const thaMatrix = res.body.peliculas.find(peli => peli.id == 603);
         expect(thaMatrix).toBeDefined();
     });
+    // Tests logout
+    test('Logout correcto', async () => {
+        const res = await request(app).post('/logout').set('authorization', `Bearer ${token}`);
+
+        expect(res.status).toBe(201);
+        expect(res.body.message).toBe("Se cerró correctamente sesión.");
+    });
+    test('Autenticacion post-logout', async () => {
+        const res = await request(app).get('/peliculas').set('authorization', `Bearer ${token}`);
+
+        expect(res.status).toBe(403);
+        expect(res.body.error).toBe("Acceso denegado. Token inválido.");
+    });
 
     // Limpiar
     afterAll(async ()=> {
@@ -190,6 +203,14 @@ describe('Tests de la API', ()=>{
             JSON.stringify(favs.filter(fav => fav.email !== 'felipe.carranza.f@gmail.com')),
             err => {
                 if (err) console.log(`Hubo un error eliminando el usuario de prueba\n ${err}`);
+            }
+        );
+        const blcklst = JSON.parse(fs.readFileSync('./blacklist.txt'), 'utf-8');
+        fs.writeFile(
+            "./blacklist.txt",
+            JSON.stringify(blcklst.filter(tkn => tkn !== token)),
+            err => {
+                if (err) console.log(`Hubo un error eliminando el token de prueba\n ${err}`);
             }
         );
     });
